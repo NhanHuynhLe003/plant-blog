@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
-
+import style from "./mainLayout.module.scss"
 
 export default function MainLayout({children}) {
   return (
@@ -10,7 +10,7 @@ export default function MainLayout({children}) {
             <title>Plant Blog</title>
         </Head>
         <Header/>
-        <main>{children}</main>
+        <main className={style.mainContent}>{children}</main>
         <Footer/>
     </>
   )

@@ -10,12 +10,51 @@ import SwiperCore, { Autoplay } from "swiper";
 
 export default function SectionFirst() {
   SwiperCore.use([Autoplay]);
-  const imgSrcList = [
-    { id: 1, src: "/images/img1.jpg", alt: "img1" },
-    { id: 2, src: "/images/img2.jpg", alt: "img2" },
-    { id: 3, src: "/images/img3.jpg", alt: "img3" },
-    { id: 4, src: "/images/img4.jpg", alt: "img4" },
-    { id: 5, src: "/images/img5.jpg", alt: "img5" },
+  const dataList = [
+    {
+      id: 1,
+      img: { src: "/images/img1.jpg", alt: "img1" },
+      title: "First Blog",
+      genres: ["business", "travel", "environment"],
+      desc: `Lorem, ipsum dolor sit amet consectetur adipisicing elit. Error,
+      quidem. Unde corporis deleniti maxime, illo facere accusantium modi
+      eaque debitis autem amet facilis non laboriosam, obcaecati eligendi
+      deserunt fugiat vitae.`,
+      timePublic: "March 30, 2023",
+      nameAuthor: "nhan huynh 1",
+      jobAuthor: "FrontEnd Developer",
+      avatar: "/images/author/author1.jpg",
+      
+    },
+    {
+      id: 2,
+      img: { src: "/images/img2.jpg", alt: "img2" },
+      title: "Second Blog",
+      genres: ["food", "travel", "study"],
+      desc: `Lorem, ipsum dolor sit amet consectetur adipisicing elit. Error,
+      quidem. Unde corporis deleniti maxime, illo facere accusantium modi
+      eaque debitis autem amet facilis non laboriosam, obcaecati eligendi
+      deserunt fugiat vitae.`,
+      timePublic: "March 30, 2023",
+      nameAuthor: "nhan huynh 2",
+      jobAuthor: "backend Developer",
+      avatar: "/images/author/author1.jpg",
+      
+    },
+    {
+      id: 3,
+      img: { src: "/images/img3.jpg", alt: "img3" },
+      title: "Third Blog",
+      genres: ["business", "travel", "environment"],
+      desc: `Lorem, ipsum dolor sit amet consectetur adipisicing elit. Error,
+      quidem. Unde corporis deleniti maxime, illo facere accusantium modi
+      eaque debitis autem amet facilis non laboriosam, obcaecati eligendi
+      deserunt fugiat vitae.`,
+      timePublic: "March 30, 2023",
+      nameAuthor: "nhan huynh 3",
+      jobAuthor: "FullStack Developer",
+      avatar: "/images/author/author1.jpg",
+    },
   ];
   const bgStyle = {
     background: "url('/images/banner.png') no-repeat",
@@ -30,21 +69,25 @@ export default function SectionFirst() {
         <Swiper
           slidesPerView={1}
           autoplay={{
-            delay: 3000,
+            delay: 2000,
+            disableOnInteraction: false
           }}
+          
           loop={true}
         >
-          {imgSrcList.map((impProp, index) => {
-            return <SwiperSlide key={impProp.id}>{Slider(impProp)}</SwiperSlide>
+          {dataList.map((data, index) => {
+            const {id, desc, genres, img, timePublic, title, avatar, jobAuthor, nameAuthor} = data
+            return (
+              <SwiperSlide key={data.id}>{Slider(id, img, genres, timePublic, title, desc, nameAuthor, jobAuthor, avatar)}</SwiperSlide>
+            );
           })}
-          
         </Swiper>
       </div>
     </section>
   );
 }
 
-function Slider(imgProp) {
+function Slider(id, imgProp, genres, timePublic, title, desc, nameAuthor, jobAuthor, avatar) {
   return (
     <div className="grid md:grid-cols-2">
       <div className="images">
@@ -56,31 +99,32 @@ function Slider(imgProp) {
         <div className="category flex gap-2">
           <Link
             href="/"
-            className="genres capitalize text-orange-600 hover:text-orange-700"
+            className="genres flex gap-1 capitalize text-orange-600 hover:text-orange-700"
           >
-            business, travel
+            {genres.map((genre, index) => {
+              return (
+                <span>
+                  {genre} {index !== genres.length - 1 ? "," : ""}{" "}
+                </span>
+              );
+            })}
           </Link>
           <span>-</span>
           <Link
             href="/"
-            className="genres capitalize text-gray-800 hover:text-gray-600"
+            className="timePublish capitalize text-gray-800 hover:text-gray-600"
           >
-            march 29, 2023
+            {timePublic}
           </Link>
         </div>
-        <div className="title pt-4">
+        <div className="content pt-4">
           <Link href="/">
-            <h1 className="text-3xl md:text-6xl font-bold text-gray-800 hover:text-gray-600">
-              First Blog
+            <h1 className="title text-3xl md:text-6xl font-bold text-gray-800 hover:text-gray-600">
+              {title}
             </h1>
           </Link>
-          <p className="description text-gray-500 py-4">
-            Lorem, ipsum dolor sit amet consectetur adipisicing elit. Error,
-            quidem. Unde corporis deleniti maxime, illo facere accusantium modi
-            eaque debitis autem amet facilis non laboriosam, obcaecati eligendi
-            deserunt fugiat vitae.
-          </p>
-          <Author />
+          <p className="description text-gray-500 py-4">{desc}</p>
+          <Author job={jobAuthor} name={nameAuthor} avatarSrc={avatar}/>
         </div>
       </div>
     </div>
