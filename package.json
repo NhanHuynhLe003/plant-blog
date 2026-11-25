@@ -9,7 +9,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "pretest": "node scripts/check-secrets.mjs",
+    "prebuild": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",
