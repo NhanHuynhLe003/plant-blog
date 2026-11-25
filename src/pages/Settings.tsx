@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { AiSettings } from '../components/AiPanel'
 import { Icon } from '../components/Icon'
 import { useConfirm, useToast } from '../components/ui'
 import { exportBackup, importBackup, wipeAll } from '../lib/backup'
@@ -73,6 +74,8 @@ export function SettingsPage() {
           <p>Dữ liệu chỉ nằm trên thiết bị này. Hãy sao lưu định kỳ.</p>
         </div>
       </header>
+
+      <AiSettings />
 
       <section className="card">
         <h2>Ôn tập</h2>
@@ -151,7 +154,7 @@ export function SettingsPage() {
             Đang dùng {mb(storage.usage)} MB / {mb(storage.quota)} MB · {storage.persisted ? 'trình duyệt cam kết không tự xoá' : 'trình duyệt có thể xoá khi máy đầy — nên cài ứng dụng lên màn hình chính và sao lưu'}
           </p>
         )}
-        <Row title="Sao lưu" hint="Tải về một tệp .zip gồm ghi chú, thẻ, lịch sử ôn và cài đặt.">
+        <Row title="Sao lưu" hint="Tải về một tệp .zip gồm ghi chú, thẻ, lịch sử ôn và cài đặt (không gồm khoá API).">
           <button
             className="btn"
             disabled={!!busy}
@@ -189,7 +192,7 @@ export function SettingsPage() {
             </button>
           </>
         </Row>
-        <Row title="Dữ liệu mẫu" hint="Hai ghi chú giả lập và ~4 tháng lịch sử ôn để xem thử heatmap, chuỗi, thống kê.">
+        <Row title="Dữ liệu mẫu" hint="Ba ghi chú giả lập và ~4 tháng lịch sử ôn để xem thử heatmap, chuỗi, thống kê.">
           {demoCount ? (
             <button className="btn" disabled={!!busy} onClick={() => void task('gỡ dữ liệu mẫu', async () => (await removeDemo(), await rebuildDays(), toast('Đã gỡ dữ liệu mẫu')))}>
               Gỡ mẫu

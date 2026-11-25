@@ -9,6 +9,8 @@ import type { Card, DayStat, MetaRow, Note, Page, ReviewEntry } from './types'
  *   pages/<id>, thumbs/<id> – ảnh trang gốc (không nén lại)
  */
 const FORMAT = 'inkrecall-backup'
+/** Các hàng meta chỉ có nghĩa trên chính thiết bị này. */
+export const LOCAL_ONLY_META = ['ai', 'watch']
 const VERSION = 1
 
 interface BackupData {
@@ -46,7 +48,8 @@ export async function exportBackup(): Promise<Blob> {
     cards,
     reviews,
     days,
-    meta,
+    // Khoá API và quyền thư mục theo dõi ở lại trên thiết bị, không đi theo tệp sao lưu.
+    meta: meta.filter((m) => !LOCAL_ONLY_META.includes(m.key)),
   }
   for (const { thumb, ...rest } of notes) {
     data.notes.push({ ...rest, thumbType: thumb?.type })
@@ -88,13 +91,15 @@ export async function importBackup(file: Blob): Promise<{ notes: number; cards: 
     if (blob) pages.push({ ...p, blob })
   }
   await db.transaction('rw', [db.notes, db.pages, db.cards, db.reviews, db.days, db.meta], async () => {
+    const local = await db.meta.where('key').anyOf(LOCAL_ONLY_META).toArray()
     await Promise.all([db.notes.clear(), db.pages.clear(), db.cards.clear(), db.reviews.clear(), db.days.clear(), db.meta.clear()])
+    await db.meta.bulkAdd(local)
     await db.notes.bulkAdd(notes)
     await db.pages.bulkAdd(pages)
     await db.cards.bulkAdd(data.cards)
     await db.reviews.bulkAdd(data.reviews)
     await db.days.bulkAdd(data.days)
-    await db.meta.bulkAdd(data.meta)
+    await db.meta.bulkPut(data.meta.filter((m) => !LOCAL_ONLY_META.includes(m.key)))
   })
   log.warn('backup', `Khôi phục từ sao lưu ngày ${data.exportedAt.slice(0, 10)}`, { notes: notes.length, pages: pages.length, cards: data.cards.length, reviews: data.reviews.length })
   return { notes: notes.length, cards: data.cards.length, reviews: data.reviews.length }

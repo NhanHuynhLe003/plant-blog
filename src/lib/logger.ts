@@ -22,12 +22,18 @@ export function configureLogger(opts: { level?: LogLevel; maxLogs?: number }): v
   if (opts.maxLogs) maxLogs = opts.maxLogs
 }
 
+/** Che mọi chuỗi trông giống khoá API để khoá không bao giờ lọt vào nhật ký. */
+export function redact(text: string): string {
+  return text.replace(/\b(sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,})/g, '[khoá đã ẩn]')
+}
+
 /** Đưa dữ liệu bất kỳ về dạng lưu được (Error, Blob, vòng lặp tham chiếu…). */
 export function sanitize(value: unknown, depth = 0): unknown {
   if (value === null || value === undefined) return value
-  if (value instanceof Error) return { name: value.name, message: value.message, stack: value.stack?.split('\n').slice(0, 6).join('\n') }
+  if (value instanceof Error) return { name: value.name, message: redact(value.message), stack: redact(value.stack?.split('\n').slice(0, 6).join('\n') ?? '') }
   if (typeof Blob !== 'undefined' && value instanceof Blob) return { blob: value.type, size: value.size }
   if (typeof value === 'function') return '[function]'
+  if (typeof value === 'string') return redact(value)
   if (typeof value !== 'object') return typeof value === 'bigint' ? String(value) : value
   if (depth > 4) return '[…]'
   if (Array.isArray(value)) return value.slice(0, 50).map((v) => sanitize(v, depth + 1))
@@ -64,7 +70,7 @@ export function flushLogs(): Promise<void> {
 
 function emit(level: LogLevel, category: LogCategory, message: string, data?: unknown): void {
   if (ORDER[level] < ORDER[minLevel]) return
-  const entry: LogEntry = { ts: Date.now(), level, category, message, session: SESSION_ID }
+  const entry: LogEntry = { ts: Date.now(), level, category, message: redact(message), session: SESSION_ID }
   if (data !== undefined) entry.data = sanitize(data)
   const fn = level === 'error' ? console.error : level === 'warn' ? console.warn : level === 'debug' ? console.debug : console.info
   fn(`[${category}] ${message}`, data ?? '')
@@ -99,6 +105,7 @@ export const CATEGORY_LABEL: Record<LogCategory, string> = {
   streak: 'Chuỗi',
   backup: 'Sao lưu',
   settings: 'Cài đặt',
+  ai: 'AI',
 }
 
 export function logsToCsv(rows: LogEntry[]): string {

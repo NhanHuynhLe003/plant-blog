@@ -1,12 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AiSetupHint, useAiLabel } from '../components/AiPanel'
 import { Icon } from '../components/Icon'
 import { PageFrame, rectStyle } from '../components/PageView'
 import { useConfirm, useToast } from '../components/ui'
-import { deleteNote } from '../lib/cards'
+import { pendingAiPages, runAi } from '../lib/ai/lazy'
+import { deleteCards, deleteNote } from '../lib/cards'
 import { db } from '../lib/db'
-import { useNow, useSettings, useToday } from '../lib/hooks'
+import { useAiJobs, useNow, useSettings, useToday } from '../lib/hooks'
 import { log } from '../lib/logger'
 import { retrievability } from '../lib/scheduler'
 import { dayEndTs } from '../lib/time'
@@ -31,6 +33,8 @@ export function NoteDetail() {
   const today = useToday()
   const now = useNow(60_000)
   const [showMastery, setShowMastery] = useState(true)
+  const ai = useAiLabel()
+  const jobs = useAiJobs()
 
   const note = useLiveQuery(() => db.notes.get(noteId), [noteId])
   const pages = useLiveQuery(() => db.pages.where('[noteId+index]').between([noteId, 0], [noteId, Infinity]).toArray(), [noteId])
@@ -57,6 +61,20 @@ export function NoteDetail() {
         </Link>
       </div>
     )
+  }
+
+  const regions = (cards ?? []).filter((c) => c.kind !== 'qa')
+  const qaCards = (cards ?? []).filter((c) => c.kind === 'qa')
+  const aiDone = pages.filter((p) => p.ai?.status === 'done').length
+  const aiFailed = pages.filter((p) => p.ai?.status === 'error')
+  const aiWaiting = pages.filter((p) => p.ai?.status === 'pending' || p.ai?.status === 'running').length
+  const summaries = pages.filter((p) => p.summary?.length)
+
+  const startAi = async (onlyUnfinished: boolean) => {
+    const ids = onlyUnfinished ? await pendingAiPages(note.id) : pages.map((p) => p.id)
+    const todo = onlyUnfinished && ids.length === 0 ? pages.filter((p) => p.ai?.status !== 'done').map((p) => p.id) : ids
+    if (todo.length === 0) return toast('Mọi trang đã được AI xử lý')
+    await runAi(todo)
   }
 
   const rename = async () => {
@@ -105,6 +123,68 @@ export function NoteDetail() {
         </div>
       </header>
 
+      <section className="card" data-testid="ai-note">
+        <div className="row between">
+          <div className="grow">
+            <h2 style={{ marginBottom: 2 }}>Trợ lý AI</h2>
+            <p className="muted small" data-testid="ai-note-status">
+              {aiDone === 0 && aiWaiting === 0 && aiFailed.length === 0
+                ? 'AI có thể đọc chữ viết tay, đặt câu hỏi cho từng vùng và viết tóm tắt ôn tập.'
+                : `Đã xử lý ${aiDone}/${pages.length} trang${aiWaiting ? ` · ${aiWaiting} trang đang chờ` : ''}${aiFailed.length ? ` · ${aiFailed.length} trang lỗi` : ''}`}
+            </p>
+          </div>
+          <div className="row">
+            {!ai.ready ? (
+              <AiSetupHint />
+            ) : jobs.running ? (
+              <span className="chip">Đang chạy…</span>
+            ) : (
+              <>
+                {aiDone > 0 && aiDone < pages.length && (
+                  <button className="btn small primary" onClick={() => void startAi(true)}>
+                    <Icon name="wand" /> Xử lý {pages.length - aiDone} trang còn lại
+                  </button>
+                )}
+                <button className={`btn small ${aiDone > 0 ? '' : 'primary'}`} onClick={() => void startAi(false)} data-testid="ai-run">
+                  <Icon name="wand" /> {aiDone > 0 ? 'Chạy lại cả ghi chú' : `Tạo câu hỏi bằng ${ai.label}`}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        {aiFailed.length > 0 && (
+          <p className="chip bad" style={{ whiteSpace: 'normal', padding: '6px 10px', marginTop: 10 }}>
+            Trang {aiFailed.map((p) => p.index + 1).join(', ')}: {aiFailed[0].ai?.error}
+          </p>
+        )}
+        {summaries.length > 0 && (
+          <details className="help" style={{ marginTop: 12 }} open>
+            <summary>Tóm tắt ôn tập</summary>
+            <ul className="summary-list" style={{ marginTop: 8 }} data-testid="ai-summary">
+              {summaries.flatMap((p) => p.summary!.map((s, i) => <li key={`${p.id}-${i}`}>{s}</li>))}
+            </ul>
+          </details>
+        )}
+        {qaCards.length > 0 && (
+          <details className="help" style={{ marginTop: 12 }}>
+            <summary>{qaCards.length} thẻ hỏi–đáp tổng hợp</summary>
+            <div className="qa-list" style={{ marginTop: 6 }} data-testid="qa-list">
+              {qaCards.map((c) => (
+                <div className="qa-item" key={c.id}>
+                  <div>
+                    <b>{c.prompt}</b>
+                    <div className="muted">{c.answer}</div>
+                  </div>
+                  <button className="btn small ghost danger" onClick={() => void deleteCards([c.id])} aria-label="Xoá thẻ hỏi–đáp này">
+                    <Icon name="trash" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+      </section>
+
       <section className="card">
         <div className="row between">
           <div>
@@ -135,19 +215,20 @@ export function NoteDetail() {
         {pages.map((p) => (
           <Link key={p.id} to={`/notes/${note.id}/page/${p.id}`} aria-label={`Sửa thẻ trang ${p.index + 1}`} data-testid="page-link">
             <PageFrame page={p}>
-              {(cards ?? [])
+              {regions
                 .filter((c) => c.pageId === p.id)
                 .map((c) => {
                   const m = showMastery ? mastery(c, now, settings.retention) : { cls: '', label: '' }
                   return (
-                    <div key={c.id} className={`region ${m.cls} ${c.suspended ? 'suspended' : ''}`} style={rectStyle(c.rect)}>
+                    <div key={c.id} className={`region ${m.cls} ${c.suspended ? 'suspended' : ''}`} style={rectStyle(c.rect)} title={c.prompt || undefined} data-has-question={c.prompt ? '1' : undefined}>
                       {showMastery && c.state !== 0 && <span className="tag">{m.label}</span>}
                     </div>
                   )
                 })}
             </PageFrame>
             <div className="muted small" style={{ marginTop: 6, textAlign: 'center' }}>
-              Trang {p.index + 1} · {(cards ?? []).filter((c) => c.pageId === p.id).length} thẻ
+              Trang {p.index + 1} · {regions.filter((c) => c.pageId === p.id).length} thẻ
+              {p.ai?.status === 'done' ? ' · AI ✓' : p.ai?.status === 'error' ? ' · AI lỗi' : p.ai?.status ? ' · AI đang chờ' : ''}
             </div>
           </Link>
         ))}

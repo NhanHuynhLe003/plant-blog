@@ -1,8 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { WatchFolder } from '../components/AiPanel'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/ui'
+import { autoStudy } from '../lib/ai/lazy'
 import { db, saveSettings } from '../lib/db'
 import { useObjectUrl, useSettings, useToday } from '../lib/hooks'
 import { importFiles, takeSharedFiles, type ImportProgress } from '../lib/importer'
@@ -69,7 +71,8 @@ export function Notes() {
         const results = await importFiles(files, { source, onProgress: setProgress })
         const pages = results.reduce((n, r) => n + r.pages, 0)
         const made = results.reduce((n, r) => n + r.cards, 0)
-        toast(`Đã nhập ${pages} trang, tạo ${made} thẻ`)
+        const queued = await autoStudy(results.map((r) => r.note.id))
+        toast(`Đã nhập ${pages} trang, tạo ${made} thẻ${queued ? ' · AI đang đặt câu hỏi' : ''}`)
         if (results.length === 1) navigate(`/notes/${results[0].note.id}`)
       } catch (error) {
         toast(error instanceof Error ? error.message : 'Nhập thất bại', 'error')
@@ -153,6 +156,8 @@ export function Notes() {
           </div>
         )}
       </section>
+
+      <WatchFolder />
 
       <details className="help card">
         <summary>Cách đưa ghi chú từ Samsung Notes vào đây</summary>

@@ -6,7 +6,7 @@ export interface Rect {
   h: number
 }
 
-export type NoteSource = 'pdf' | 'image' | 'share' | 'demo'
+export type NoteSource = 'pdf' | 'image' | 'share' | 'folder' | 'demo'
 
 export interface Note {
   id: string
@@ -18,6 +18,15 @@ export interface Note {
   thumb?: Blob
 }
 
+/** Trạng thái xử lý AI của một trang. */
+export interface PageAi {
+  status: 'pending' | 'running' | 'done' | 'error'
+  provider?: AiProvider
+  model?: string
+  at?: number
+  error?: string
+}
+
 export interface Page {
   id: string
   noteId: string
@@ -25,6 +34,11 @@ export interface Page {
   blob: Blob
   width: number
   height: number
+  /** Chữ viết tay do AI đọc được (ghép từ các vùng). */
+  text?: string
+  /** Tóm tắt ôn tập của trang do AI viết. */
+  summary?: string[]
+  ai?: PageAi
 }
 
 /** 0 = Mới, 1 = Đang học, 2 = Ôn tập, 3 = Học lại (theo FSRS). */
@@ -51,8 +65,15 @@ export interface Card {
   pageId: string
   pageIndex: number
   rect: Rect
+  /** Câu hỏi / gợi ý hiện ở mặt trước. */
   prompt: string
-  origin: 'manual' | 'auto'
+  /** occlusion (mặc định): che một vùng trên trang · qa: thẻ hỏi–đáp bằng chữ. */
+  kind?: 'occlusion' | 'qa'
+  /** Đáp án dạng chữ: nội dung AI đọc được của vùng, hoặc câu trả lời của thẻ hỏi–đáp. */
+  answer?: string
+  /** Câu hỏi gần nhất do AI viết — để không ghi đè câu hỏi người dùng tự sửa. */
+  aiPrompt?: string
+  origin: 'manual' | 'auto' | 'ai'
   createdAt: number
   suspended: 0 | 1
   /** Bản sao của sched.due / sched.state để đánh chỉ mục. */
@@ -94,7 +115,7 @@ export interface DayStat {
 }
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
-export type LogCategory = 'system' | 'import' | 'card' | 'review' | 'streak' | 'backup' | 'settings'
+export type LogCategory = 'system' | 'import' | 'card' | 'review' | 'streak' | 'backup' | 'settings' | 'ai'
 
 export interface LogEntry {
   id?: number
@@ -129,6 +150,20 @@ export interface StreakMeta {
   lastAwardDay?: string
   /** Ngày hoạt động cuối của chuỗi đã ghi nhận là bị đứt. */
   lastBrokenAfter?: string
+}
+
+export type AiProvider = 'claude' | 'openai' | 'gemini' | 'deepseek'
+
+/** Cấu hình AI — lưu riêng trong meta['ai'], KHÔNG nằm trong tệp sao lưu. */
+export interface AiConfig {
+  provider: AiProvider
+  keys: Partial<Record<AiProvider, string>>
+  models: Partial<Record<AiProvider, string>>
+  /** Tự chạy AI ngay sau khi nhập ghi chú. */
+  auto: boolean
+  /** Số câu hỏi tổng hợp thêm cho mỗi trang (0 = chỉ đặt câu hỏi cho từng vùng). */
+  extraPerPage: number
+  language: 'auto' | 'vi' | 'en'
 }
 
 export interface MetaRow {

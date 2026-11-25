@@ -33,7 +33,7 @@ export function PageEditor() {
 
   const page = useLiveQuery(() => db.pages.get(pageId), [pageId])
   const pages = useLiveQuery(() => db.pages.where('[noteId+index]').between([noteId, 0], [noteId, Infinity]).toArray(), [noteId])
-  const cards = useLiveQuery(() => db.cards.where('pageId').equals(pageId).toArray(), [pageId])
+  const cards = useLiveQuery(() => db.cards.where('pageId').equals(pageId).filter((c) => c.kind !== 'qa').toArray(), [pageId])
   const sel = cards?.find((c) => c.id === selected)
 
   useEffect(() => setSelected(null), [pageId])
@@ -229,6 +229,11 @@ export function PageEditor() {
             <span>Gợi ý hiện khi ôn (không bắt buộc)</span>
             <input className="input" value={sel.prompt} placeholder="Ví dụ: Phương trình quang hợp là gì?" onChange={(e) => void db.cards.update(sel.id, { prompt: e.target.value })} />
           </label>
+          {sel.answer && (
+            <p className="muted small">
+              <b>AI đọc được:</b> {sel.answer}
+            </p>
+          )}
         </section>
       )}
     </div>

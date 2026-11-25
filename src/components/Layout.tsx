@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { AiBanner } from './AiPanel'
 import { Icon, type IconName } from './Icon'
 
 const LINKS: { to: string; label: string; icon: IconName; end?: boolean }[] = [
@@ -27,6 +28,7 @@ export function Layout() {
         <div className="nav-spacer" />
       </nav>
       <main className="main">
+        <AiBanner />
         <Outlet />
       </main>
     </div>

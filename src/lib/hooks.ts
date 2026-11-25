@@ -1,10 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { AI_META_KEY, mergeAiConfig } from './ai/config'
+import { aiJobs, type AiJobState } from './ai/jobs'
 import { db, DEFAULT_SETTINGS, DEFAULT_STREAK_META } from './db'
 import { computeStreak, type StreakInfo } from './streak'
 import { flagsOf, reconcileStreak } from './streakService'
 import { dayKeyOf } from './time'
-import type { DayStat, Settings, StreakMeta } from './types'
+import type { AiConfig, DayStat, Settings, StreakMeta } from './types'
 
 export function useSettings(): Settings {
   const row = useLiveQuery(() => db.meta.get('settings'), [])
@@ -82,4 +84,13 @@ export function useFitColumns(colWidth: number, reserved: number, min: number, m
     return () => ro.disconnect()
   }, [colWidth, reserved, min, max])
   return { ref, cols }
+}
+
+export function useAiConfig(): AiConfig {
+  const row = useLiveQuery(() => db.meta.get(AI_META_KEY), [])
+  return useMemo(() => mergeAiConfig(row?.value), [row])
+}
+
+export function useAiJobs(): AiJobState {
+  return useSyncExternalStore(aiJobs.subscribe, aiJobs.get)
 }

@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
-import { OccludedPage } from '../components/PageView'
+import { OccludedPage, PageFrame } from '../components/PageView'
 import { useToast } from '../components/ui'
 import { db } from '../lib/db'
 import { useSettings } from '../lib/hooks'
@@ -44,7 +44,7 @@ export function Review() {
       // Tránh hiện lại ngay thẻ vừa chấm nếu còn thẻ khác.
       const card = queue.ready.find((c) => c.id !== lastCard.current) ?? queue.ready[0] ?? null
       const page = card ? ((await db.pages.get(card.pageId)) ?? null) : null
-      const others = card ? (await db.cards.where('pageId').equals(card.pageId).toArray()).filter((c) => c.id !== card.id) : []
+      const others = card ? (await db.cards.where('pageId').equals(card.pageId).toArray()).filter((c) => c.id !== card.id && c.kind !== 'qa') : []
       if (card && !page) log.error('review', 'Thẻ trỏ tới trang không còn tồn tại', { cardId: card.id, pageId: card.pageId })
       setCur({ queue, card, page, others })
       setRevealed(false)
@@ -207,18 +207,48 @@ export function Review() {
         </div>
         <div className="row" style={{ gap: 6 }}>
           {undoBtn}
-          <button className={`btn small ${fullPage ? 'on' : ''}`} onClick={() => setFullPage((v) => !v)} aria-pressed={fullPage}>
-            <Icon name="expand" /> Cả trang
-          </button>
+          {card.kind !== 'qa' && (
+            <button className={`btn small ${fullPage ? 'on' : ''}`} onClick={() => setFullPage((v) => !v)} aria-pressed={fullPage}>
+              <Icon name="expand" /> Cả trang
+            </button>
+          )}
         </div>
       </div>
 
-      {card.prompt && (
-        <p className="card" style={{ padding: '10px 14px' }}>
-          <b>Gợi ý:</b> {card.prompt}
-        </p>
+      {card.kind === 'qa' ? (
+        <section className="card qa" data-testid="qa-card">
+          <span className="chip">Câu hỏi tổng hợp · AI</span>
+          <p className="qa-q">{card.prompt}</p>
+          {revealed && (
+            <>
+              <hr />
+              <p className="qa-a" data-testid="qa-answer">
+                {card.answer}
+              </p>
+              <details className="help">
+                <summary>Xem trang ghi chú gốc</summary>
+                <div style={{ marginTop: 10 }}>
+                  <PageFrame page={page} />
+                </div>
+              </details>
+            </>
+          )}
+        </section>
+      ) : (
+        <>
+          {card.prompt && (
+            <p className="card" style={{ padding: '10px 14px' }} data-testid="card-question">
+              <b>{card.aiPrompt === card.prompt ? 'Câu hỏi:' : 'Gợi ý:'}</b> {card.prompt}
+            </p>
+          )}
+          <OccludedPage page={page} target={card} others={others} revealed={revealed} hideAll={settings.occlusion === 'all'} fullPage={fullPage} />
+          {revealed && card.answer && (
+            <p className="muted small" style={{ textAlign: 'center' }}>
+              AI đọc được: {card.answer}
+            </p>
+          )}
+        </>
       )}
-      <OccludedPage page={page} target={card} others={others} revealed={revealed} hideAll={settings.occlusion === 'all'} fullPage={fullPage} />
 
       <div className="review-actions">
         {!revealed ? (
